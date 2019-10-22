@@ -1,7 +1,10 @@
-package homework;
-
+/**
+ *
+ * @author Saatvik
+ */
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue; 
 
@@ -33,8 +36,6 @@ class InputData {
     }
 
     public double getTimeLeft() {
-        // TODO: If very less time is remaining then just return the value till now.
-        // Very Less time can be determined based on the games we play.
         return time_left;
     }
 
@@ -169,6 +170,9 @@ public class homework {
     private static final int MIN = -10000;
     private static final int MAX = 10000;
     private int[][] visitedInHops;
+    private long startTime;
+    private long endTime;
+    // Get Input from File
     private InputData getData() throws FileNotFoundException, IOException {
         File fin = new File("input.txt");
         InputData dataObj;
@@ -207,13 +211,49 @@ public class homework {
         dataObj.setBoard(board);
         return dataObj;
     }
-    
-    // Change this according to the time
-    private int getMaxDepth(){
-        return 2;
+    // Change the depth of these according to the time
+    private int getMaxDepth(double time_left, int moveType) throws FileNotFoundException, IOException{
+        if(moveType == 1){
+            return 2;
+        } else{
+            File fin = new File("calibration.txt");
+            if(fin.exists()) {
+                long[] timeForEachDepth = new long[10];
+                try (BufferedReader br = new BufferedReader(new FileReader(fin))) {
+                    timeForEachDepth[0] = Long.parseLong(br.readLine())/1000;
+                    timeForEachDepth[1] = Long.parseLong(br.readLine())/1000;
+                    timeForEachDepth[2] = Long.parseLong(br.readLine())/1000;
+
+                    if(timeForEachDepth[2] + 5 < time_left && time_left > 300){
+                        return 4;
+                    } else if(timeForEachDepth[1] + 5 < time_left && time_left > 280){
+                        return 3;
+                    } else if(timeForEachDepth[2] + 10 < time_left && time_left > 120){
+                        return 4;
+                    } else if(timeForEachDepth[1] + 5 < time_left && time_left > 12){
+                        return 3;
+                    } else{
+                        return 2;
+                    }
+                }
+            } else{
+                if(time_left > 275){
+                    return 3;
+                } else if(time_left > 150){
+                    return 4;
+                } else if(time_left > 30){
+                    return 3;
+                } else{
+                    return 2;
+                }
+            }
+        }
     }
     // Generate the current state of Board
     private ArrayList<String> makeNewBoard(ArrayList<String> board, int old_x, int old_y, int new_x, int new_y){
+        if(old_x == new_x && old_y == new_y){
+            return board;
+        }
         char ch1 = board.get(old_x).charAt(old_y);
         char ch2 = board.get(new_x).charAt(new_y);
         ArrayList<String> newBoard = new ArrayList();
@@ -254,56 +294,98 @@ public class homework {
     }
     // Get the Score of leaf Nodes
     private int utilityFunction(ArrayList<String> board, char myColor){
-        int result = 1000;
-        Pair destinationPair;
-        if(myColor == 'W'){
-            destinationPair = new Pair(0, 0);
-        } else {
-            destinationPair = new Pair(15, 15);
-        }
-        for(int i = 0; i< BOARD_SIZE; i++){
-            for(int j = 0; j< BOARD_SIZE ; j++){
-                if (board.get(i).charAt(j) == myColor){
-                    result -= Math.sqrt(Math.pow((destinationPair.getX() - i), 2) + 
-                            Math.pow((destinationPair.getY() - j), 2));
-                }
-            }
-        }
-        return result;
-    }
-    // Get Euclidian Distance
-    private int getEuclidianDistance(ArrayList<String> board, char myColor){
         int result = 0;
         Pair destinationPair;
+        char op_color;
         if(myColor == 'W'){
             destinationPair = new Pair(0, 0);
+            op_color = 'B';
         } else {
             destinationPair = new Pair(15, 15);
+            op_color = 'W';
         }
         for(int i = 0; i< BOARD_SIZE; i++){
             for(int j = 0; j< BOARD_SIZE ; j++){
                 if (board.get(i).charAt(j) == myColor){
                     result += Math.sqrt(Math.pow((destinationPair.getX() - i), 2) + 
                             Math.pow((destinationPair.getY() - j), 2));
-                }
+                } 
+//                else{
+//                    result -= getJumpMovesFromCurrentPlayer(board, op_color, i, j, new ArrayList()).size() * 2;
+//                }
             }
         }
         return result;
     }
-    // Get how many points are in my camp
-    private int getTotalCampPoints(ArrayList<String> board, char myColor, int start, int end, int sum){
-        int count = 0;
-        for(int i = start; i < end; i++){
-            for(int j = start; j < end; j++){
-                if (((sum == 6 && i + j < sum) || (sum == 24 && i + j > sum)) && (myColor == board.get(i).charAt(j))){
-                    count++;
+    // Check if the current board is game winning board
+    private Boolean isGameWon(ArrayList<String> board, char myColor){
+        int opp_start, opp_end, opp_sum;
+        if(myColor == 'W'){
+            opp_start = 0; opp_end = 5; opp_sum = 6;
+        } else {
+            opp_start = 11; opp_end = BOARD_SIZE; opp_sum = 24;
+        }
+        int myColor_points = 0, opColor_points = 0;
+        for(int i = opp_start; i < opp_end; i++){
+            for(int j = opp_start; j < opp_end; j++){
+                if ((opp_sum == 6 && i + j < opp_sum) || (opp_sum == 24 && i + j > opp_sum)){
+                    if(board.get(i).charAt(j) == myColor){
+                        myColor_points++;
+                    } else if(board.get(i).charAt(j) == 'B'){
+                        opColor_points++;
+                    }
                 }
             }
         }
-        return count;
+        if(myColor_points > 0 && myColor_points + opColor_points == 19){
+            return true;
+        }
+        return false;
+    }
+    // Get how many points are in my camp
+    private HashSet<ArrayList<Integer>> getAllCampPointLocations(ArrayList<String> board, char myColor, int start, int end, int sum){
+        HashSet<ArrayList<Integer>> hashSet = new HashSet();
+        for(int i = start; i < end; i++){
+            for(int j = start; j < end; j++){
+                if (((sum == 6 && i + j < sum) || (sum == 24 && i + j > sum)) && (myColor == board.get(i).charAt(j))){
+                    ArrayList<Integer> temp = new ArrayList();
+                    temp.add(i);
+                    temp.add(j);
+                    hashSet.add(temp);
+                }
+            }
+        }
+        return hashSet;
+    }
+    // Check if the two sets are true according to rule 1b
+    private Boolean checkValidity(HashSet<ArrayList<Integer>> orig_set, HashSet<ArrayList<Integer>> t_set, char myColor){
+        int m = orig_set.size();
+        int n = t_set.size();
+        if(m != n){
+            return false;
+        }
+        HashSet<ArrayList<Integer>> temp = new HashSet<>(orig_set);
+        HashSet<ArrayList<Integer>> temp1 = new HashSet<>(orig_set);
+        temp1.removeAll(t_set);
+        t_set.removeAll(temp);
+        int[] orig_arr = new int[2];
+        int[] t_arr = new int[2];
+        if(temp1.size() != 1 || t_set.size() != 1){
+            return false;
+        }
+        for(ArrayList<Integer> i : temp1){
+            orig_arr[0] = i.get(0);
+            orig_arr[1] = i.get(1);
+        }
+        for(ArrayList<Integer> i : t_set){
+            t_arr[0] = i.get(0);
+            t_arr[1] = i.get(1);
+        }
+        return (myColor == 'B' && orig_arr[0] + orig_arr[1] < t_arr[0] + t_arr[1]) || 
+                (myColor == 'W' && orig_arr[0] + orig_arr[1] > t_arr[0] + t_arr[1]);
     }
     // Get all the valid moves for the current board
-    private ArrayList<Node> getAllValidChildren(ArrayList<String> parentBoard, char myColor){
+    private ArrayList<Node> getAllValidChildren(ArrayList<String> parentBoard, char myColor, int moveType) throws IOException{
         ArrayList<Node> children = new ArrayList<>();
         int start, end, sum;
         int opp_start, opp_end, opp_sum;
@@ -314,9 +396,9 @@ public class homework {
             start = 0; end = 5; sum = 6;
             opp_start = 11; opp_end = BOARD_SIZE; opp_sum = 24;
         }
-        int count_mycamp = getTotalCampPoints(parentBoard, myColor, start, end, sum);
-        int count_oppcamp = getTotalCampPoints(parentBoard, myColor, opp_start, opp_end, opp_sum);
-        int distance = getEuclidianDistance(parentBoard, myColor);
+        HashSet<ArrayList<Integer>> orig_set = getAllCampPointLocations(parentBoard, myColor, start, end, sum);
+        int count_mycamp = orig_set.size();
+        int count_oppcamp = getAllCampPointLocations(parentBoard, myColor, opp_start, opp_end, opp_sum).size();
         // If there exists a point in my base camp that can be moved out of base then get those moves
         for(int i = start; i < end; i++){
             for(int j = start; j < end; j++){
@@ -327,8 +409,12 @@ public class homework {
                     visitedInHops[i][j] = 1;
                     temp.addAll(getJumpMovesFromCurrentPlayer(parentBoard, myColor, i, j, new ArrayList<>()));
                     for(Node node : temp){
-                        int t_count_mycamp = getTotalCampPoints(node.getMe(), myColor, start, end, sum);
+                        int t_count_mycamp = getAllCampPointLocations(node.getMe(), myColor, start, end, sum).size();
                         if(t_count_mycamp < count_mycamp){
+                            if(moveType == 1){
+                                putData(node);
+                                System.exit(0);
+                            }
                             children.add(node);
                         }
                     }
@@ -346,9 +432,12 @@ public class homework {
                         visitedInHops[i][j] = 1;
                         temp.addAll(getJumpMovesFromCurrentPlayer(parentBoard, myColor, i, j, new ArrayList<>()));
                         for(Node node : temp){
-                            int t_count_mycamp = getTotalCampPoints(node.getMe(), myColor, start, end, sum);
-                            int t_distance = getEuclidianDistance(node.getMe(), myColor);
-                            if(t_count_mycamp == count_mycamp && t_distance < distance){
+                            HashSet<ArrayList<Integer>> t_set = getAllCampPointLocations(node.getMe(), myColor, start, end, sum);
+                            if(checkValidity(orig_set, t_set, myColor)){
+                                if(moveType == 1){
+                                    putData(node);
+                                    System.exit(0);
+                                }
                                 children.add(node);
                             }
                         }
@@ -368,9 +457,13 @@ public class homework {
                         visitedInHops[i][j] = 1;
                         temp.addAll(getJumpMovesFromCurrentPlayer(parentBoard, myColor, i, j, new ArrayList<>()));
                         for(Node node : temp){
-                            int t_count_mycamp = getTotalCampPoints(node.getMe(), myColor, start, end, sum);
-                            int t_count_oppcamp = getTotalCampPoints(node.getMe(), myColor, opp_start, opp_end, opp_sum);
-                            if(t_count_mycamp == count_mycamp && t_count_oppcamp == count_oppcamp){
+                            int t_count_mycamp = getAllCampPointLocations(node.getMe(), myColor, start, end, sum).size();
+                            int t_count_oppcamp = getAllCampPointLocations(node.getMe(), myColor, opp_start, opp_end, opp_sum).size();
+                            if(t_count_mycamp == count_mycamp && t_count_oppcamp >= count_oppcamp){
+                                if(moveType == 1){
+                                    putData(node);
+                                    System.exit(0);
+                                }
                                 children.add(node);
                             }
                         }
@@ -398,7 +491,7 @@ public class homework {
         return children;
     }
     // Jumps that will move a point out of base camp
-    private ArrayList getJumpMovesFromCurrentPlayer(ArrayList<String> board, char color, 
+    private ArrayList<Node> getJumpMovesFromCurrentPlayer(ArrayList<String> board, char color, 
             int location_x, int location_y, ArrayList<Node> children){
         for(int i = location_x - 1; i <= location_x + 1; i++){
             for(int j = location_y - 1; j <= location_y + 1; j++){
@@ -413,18 +506,20 @@ public class homework {
                                         int last = children.get(a).getMoves().size() - 1;
                                         if((children.get(a).getMoves().get(last).getTo().getX()== location_x) &&
                                                 (children.get(a).getMoves().get(last).getTo().getY()== location_y)){
-                                            moves = new ArrayList<>(children.get(a).getMoves());
+                                            moves = (ArrayList) children.get(a).getMoves().clone();
                                             break;
                                         }
                                     }
                                  }
                                 moves.add(new Move(new Pair(location_x, location_y),new Pair(i - 1, j - 1)));
-                                Node node = new Node(null, makeNewBoard(board, location_x, location_y, i - 1, j - 1), 
+                                int par_x = moves.get(0).getFrom().getX();
+                                int par_y = moves.get(0).getFrom().getY();
+                                Node node = new Node(null, makeNewBoard(board, par_x, par_y, i - 1, j - 1), 
                                                     new ArrayList<>(), 0, 0, moves, 'J');
                                 children.add(node);
                                 getJumpMovesFromCurrentPlayer(board, color, i - 1, j - 1, children);
                                 
-                            } else if ((i == location_x - 1 && j == location_y) && (i - 1 >= 0 && board.get(i - 1).charAt(j) == '.')){
+                            } else if ((i == location_x - 1 && j == location_y) && (i - 1 >= 0 && board.get(i - 1).charAt(j) == '.' && visitedInHops[i - 1][j] == 0)){
                                 visitedInHops[i - 1][j] = 1;
                                 ArrayList<Move> moves = new ArrayList<>();
                                 if(children.size() > 0){
@@ -432,18 +527,19 @@ public class homework {
                                         int last = children.get(a).getMoves().size() - 1;
                                         if((children.get(a).getMoves().get(last).getTo().getX()== location_x) &&
                                                 (children.get(a).getMoves().get(last).getTo().getY()== location_y)){
-                                            moves = new ArrayList<>(children.get(a).getMoves());
+                                            moves = (ArrayList) children.get(a).getMoves().clone();
                                             break;
                                         }
                                     }
                                  }
                                 moves.add(new Move(new Pair(location_x, location_y),new Pair(i - 1, j)));
-                                Node node = new Node(null, makeNewBoard(board, location_x, location_y, i - 1, j), 
+                                int par_x = moves.get(0).getFrom().getX();
+                                int par_y = moves.get(0).getFrom().getY();
+                                Node node = new Node(null, makeNewBoard(board, par_x, par_y, i - 1, j), 
                                                     new ArrayList<>(), 0, 0, moves, 'J');
                                 children.add(node);
                                 getJumpMovesFromCurrentPlayer(board, color, i - 1, j, children);
-                            } else if ((i == location_x - 1 && j == location_y + 1) && (i - 1 >= 0 && j + 1 < BOARD_SIZE && 
-                                        board.get(i - 1).charAt(j + 1) == '.')){
+                            } else if ((i == location_x - 1 && j == location_y + 1) && (i - 1 >= 0 && j + 1 < BOARD_SIZE && board.get(i - 1).charAt(j + 1) == '.' && visitedInHops[i - 1][j + 1] == 0)){
                                 visitedInHops[i - 1][j + 1] = 1;
                                 ArrayList<Move> moves = new ArrayList<>();
                                 if(children.size() > 0){
@@ -451,17 +547,19 @@ public class homework {
                                         int last = children.get(a).getMoves().size() - 1;
                                         if((children.get(a).getMoves().get(last).getTo().getX()== location_x) &&
                                                 (children.get(a).getMoves().get(last).getTo().getY()== location_y)){
-                                            moves = new ArrayList<>(children.get(a).getMoves());
+                                            moves = (ArrayList) children.get(a).getMoves().clone();
                                             break;
                                         }
                                     }
                                  }
                                 moves.add(new Move(new Pair(location_x, location_y),new Pair(i - 1, j + 1)));
-                                Node node = new Node(null, makeNewBoard(board, location_x, location_y, i - 1, j + 1), 
+                                int par_x = moves.get(0).getFrom().getX();
+                                int par_y = moves.get(0).getFrom().getY();
+                                Node node = new Node(null, makeNewBoard(board, par_x, par_y, i - 1, j + 1), 
                                                     new ArrayList<>(), 0, 0, moves, 'J');
                                 children.add(node);
                                 getJumpMovesFromCurrentPlayer(board, color, i - 1, j + 1, children);
-                            } else if ((i == location_x && j == location_y - 1) && (j - 1 >= 0 && board.get(i).charAt(j - 1) == '.')){
+                            } else if ((i == location_x && j == location_y - 1) && (j - 1 >= 0 && board.get(i).charAt(j - 1) == '.' && visitedInHops[i][j - 1] == 0)){
                                 visitedInHops[i][j - 1] = 1;
                                 ArrayList<Move> moves = new ArrayList<>();
                                 if(children.size() > 0){
@@ -469,17 +567,19 @@ public class homework {
                                         int last = children.get(a).getMoves().size() - 1;
                                         if((children.get(a).getMoves().get(last).getTo().getX()== location_x) &&
                                                 (children.get(a).getMoves().get(last).getTo().getY()== location_y)){
-                                            moves = new ArrayList<>(children.get(a).getMoves());
+                                            moves = (ArrayList) children.get(a).getMoves().clone();
                                             break;
                                         }
                                     }
                                  }
                                 moves.add(new Move(new Pair(location_x, location_y),new Pair(i, j - 1)));
-                                Node node = new Node(null, makeNewBoard(board, location_x, location_y, i, j - 1), 
+                                int par_x = moves.get(0).getFrom().getX();
+                                int par_y = moves.get(0).getFrom().getY();
+                                Node node = new Node(null, makeNewBoard(board, par_x, par_y, i, j - 1), 
                                                     new ArrayList<>(), 0, 0, moves, 'J');
                                 children.add(node);
                                 getJumpMovesFromCurrentPlayer(board, color, i, j - 1, children);
-                            } else if ((i == location_x && j == location_y + 1) && (j + 1 < BOARD_SIZE && board.get(i).charAt(j + 1) == '.')){
+                            } else if ((i == location_x && j == location_y + 1) && (j + 1 < BOARD_SIZE && board.get(i).charAt(j + 1) == '.' && visitedInHops[i][j + 1] == 0)){
                                 visitedInHops[i][j + 1] = 1;
                                 ArrayList<Move> moves = new ArrayList<>();
                                 if(children.size() > 0){
@@ -487,18 +587,19 @@ public class homework {
                                         int last = children.get(a).getMoves().size() - 1;
                                         if((children.get(a).getMoves().get(last).getTo().getX()== location_x) &&
                                                 (children.get(a).getMoves().get(last).getTo().getY()== location_y)){
-                                            moves = new ArrayList<>(children.get(a).getMoves());
+                                            moves = (ArrayList) children.get(a).getMoves().clone();
                                             break;
                                         }
                                     }
                                  }
                                 moves.add(new Move(new Pair(location_x, location_y),new Pair(i, j + 1)));
-                                Node node = new Node(null, makeNewBoard(board, location_x, location_y, i, j + 1), 
+                                int par_x = moves.get(0).getFrom().getX();
+                                int par_y = moves.get(0).getFrom().getY();
+                                Node node = new Node(null, makeNewBoard(board, par_x, par_y, i, j + 1), 
                                                     new ArrayList<>(), 0, 0, moves, 'J');
                                 children.add(node);
                                 getJumpMovesFromCurrentPlayer(board, color, i, j + 1, children);
-                            } else if ((i == location_x + 1 && j == location_y - 1) && (i + 1 < BOARD_SIZE && j - 1 >= 0 &&
-                                        board.get(i + 1).charAt(j- 1) == '.')){
+                            } else if ((i == location_x + 1 && j == location_y - 1) && (i + 1 < BOARD_SIZE && j - 1 >= 0 && board.get(i + 1).charAt(j- 1) == '.' && visitedInHops[i + 1][j - 1] == 0)){
                                 visitedInHops[i + 1][j - 1] = 1;
                                 ArrayList<Move> moves = new ArrayList<>();
                                 if(children.size() > 0){
@@ -506,17 +607,19 @@ public class homework {
                                         int last = children.get(a).getMoves().size() - 1;
                                         if((children.get(a).getMoves().get(last).getTo().getX()== location_x) &&
                                                 (children.get(a).getMoves().get(last).getTo().getY()== location_y)){
-                                            moves = new ArrayList<>(children.get(a).getMoves());
+                                            moves = (ArrayList) children.get(a).getMoves().clone();
                                             break;
                                         }
                                     }
                                  }
                                 moves.add(new Move(new Pair(location_x, location_y),new Pair(i + 1, j - 1)));
-                                Node node = new Node(null, makeNewBoard(board, location_x, location_y, i + 1, j - 1), 
+                                int par_x = moves.get(0).getFrom().getX();
+                                int par_y = moves.get(0).getFrom().getY();
+                                Node node = new Node(null, makeNewBoard(board, par_x, par_y, i + 1, j - 1), 
                                                     new ArrayList<>(), 0, 0, moves, 'J');
                                 children.add(node);
                                 getJumpMovesFromCurrentPlayer(board, color, i + 1, j - 1, children);
-                            } else if ((i == location_x + 1 && j == location_y) && (i + 1 < BOARD_SIZE && board.get(i + 1).charAt(j) == '.')){
+                            } else if ((i == location_x + 1 && j == location_y) && (i + 1 < BOARD_SIZE && board.get(i + 1).charAt(j) == '.' && visitedInHops[i + 1][j] == 0)){
                                 visitedInHops[i + 1][j] = 1;
                                 ArrayList<Move> moves = new ArrayList<>();
                                 if(children.size() > 0){
@@ -524,18 +627,19 @@ public class homework {
                                         int last = children.get(a).getMoves().size() - 1;
                                         if((children.get(a).getMoves().get(last).getTo().getX()== location_x) &&
                                                 (children.get(a).getMoves().get(last).getTo().getY()== location_y)){
-                                            moves = new ArrayList<>(children.get(a).getMoves());
+                                            moves = (ArrayList) children.get(a).getMoves().clone();
                                             break;
                                         }
                                     }
                                  }
                                 moves.add(new Move(new Pair(location_x, location_y),new Pair(i + 1, j)));
-                                Node node = new Node(null, makeNewBoard(board, location_x, location_y, i + 1, j), 
+                                int par_x = moves.get(0).getFrom().getX();
+                                int par_y = moves.get(0).getFrom().getY();
+                                Node node = new Node(null, makeNewBoard(board, par_x, par_y, i + 1, j), 
                                                     new ArrayList<>(), 0, 0, moves, 'J');
                                 children.add(node);
                                 getJumpMovesFromCurrentPlayer(board, color, i + 1, j, children);
-                            } else if ((i == location_x + 1 && j == location_y + 1) && (i + 1 < BOARD_SIZE && j + 1 < BOARD_SIZE && 
-                                        board.get(i + 1).charAt(j + 1) == '.')){
+                            } else if ((i == location_x + 1 && j == location_y + 1) && (i + 1 < BOARD_SIZE && j + 1 < BOARD_SIZE && board.get(i + 1).charAt(j + 1) == '.' && visitedInHops[i + 1][j + 1] == 0)){
                                 visitedInHops[i + 1][j + 1] = 1;
                                 ArrayList<Move> moves = new ArrayList<>();
                                 if(children.size() > 0){
@@ -543,13 +647,15 @@ public class homework {
                                         int last = children.get(a).getMoves().size() - 1;
                                         if((children.get(a).getMoves().get(last).getTo().getX()== location_x) &&
                                                 (children.get(a).getMoves().get(last).getTo().getY()== location_y)){
-                                            moves = new ArrayList<>(children.get(a).getMoves());
+                                            moves = (ArrayList) children.get(a).getMoves().clone();
                                             break;
                                         }
                                     }
                                  }
                                 moves.add(new Move(new Pair(location_x, location_y),new Pair(i + 1, j + 1)));
-                                Node node = new Node(null, makeNewBoard(board, location_x, location_y, i + 1, j + 1), 
+                                int par_x = moves.get(0).getFrom().getX();
+                                int par_y = moves.get(0).getFrom().getY();
+                                Node node = new Node(null, makeNewBoard(board, par_x, par_y, i + 1, j + 1), 
                                                     new ArrayList<>(), 0, 0, moves, 'J');
                                 children.add(node);
                                 getJumpMovesFromCurrentPlayer(board, color, i + 1, j + 1, children);
@@ -584,7 +690,7 @@ public class homework {
             for(int i = 0; i < children.size(); i++){
                 int val = minMax(children.get(i), true, alpha, beta);
                 best = Math.min(best, val);
-                if(best <= beta){
+                if(best <= alpha){
                     root.setScore(best);
                     return best;
                 }
@@ -595,7 +701,8 @@ public class homework {
         }
     }
     // Get the next best move from the current board
-    private Node getNextBestMove(InputData dataObj, int max_depth){
+    public Node getNextBestMove(InputData dataObj, int max_depth) throws IOException{
+        //double cnt = 1;
         Node root = new Node(null, dataObj.getBoard(), new ArrayList<>(), 0, 1, null, 'X');
         char myColor = dataObj.getColor();
         ArrayList<Node> leafNode = new ArrayList();
@@ -607,14 +714,20 @@ public class homework {
             if(cur.getLevel() >= max_depth){
                 break;
             }
-            ArrayList<Node> children = getAllValidChildren(cur.getMe(), myColor);
+            ArrayList<Node> children = getAllValidChildren(cur.getMe(), myColor, dataObj.getMoveType());
             for(int i = 0; i < children.size(); i++){
                 children.get(i).setLevel(cur.getLevel() + 1);
                 children.get(i).setParent(cur.getMe());
                 cur.addChildren(children.get(i));
                 queue.add(children.get(i));
+                if (cur.getLevel() == 1 && isGameWon(children.get(i).getMe(), myColor)){
+                    putData(children.get(i));
+                    System.exit(0);
+                }
             }
-        }
+            //cnt += children.size();
+       }
+        //System.out.println(cnt);
         if(root.getChildren().size() > 0){
             // For each leaf node call the utility function
             queue = new LinkedList<>();
@@ -634,7 +747,7 @@ public class homework {
                 leafNode.get(i).setScore(utilityFunction(leafNode.get(i).getMe(), myColor));
             }
             // Run min max to get the next best move
-            choose_score = minMax(root, true, MIN, MAX);
+            choose_score = minMax(root, false, MIN, MAX);
             // Return this move (one or set of moves)
             leafNode = new ArrayList(root.getChildren());
             for(int i = 0; i < leafNode.size(); i++){
@@ -668,7 +781,9 @@ public class homework {
     public static void main(String args[]) throws IOException {
         homework hw = new homework();
         InputData dataObj = hw.getData();
-        int max_depth = hw.getMaxDepth();
+        hw.startTime = System.currentTimeMillis();
+        int max_depth = hw.getMaxDepth(dataObj.getTimeLeft(), dataObj.getMoveType());
+//        System.out.println(max_depth);
         Node result = hw.getNextBestMove(dataObj, max_depth);
         hw.putData(result);
     }
