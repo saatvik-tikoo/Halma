@@ -170,8 +170,7 @@ public class homework {
     private static final int MIN = -10000;
     private static final int MAX = 10000;
     private int[][] visitedInHops;
-    private long startTime;
-    private long endTime;
+    private Boolean utilityFunctionFlag = false;
     // Get Input from File
     private InputData getData() throws FileNotFoundException, IOException {
         File fin = new File("input.txt");
@@ -224,26 +223,38 @@ public class homework {
                     timeForEachDepth[1] = Long.parseLong(br.readLine())/1000;
                     timeForEachDepth[2] = Long.parseLong(br.readLine())/1000;
 
-                    if(timeForEachDepth[2] + 5 < time_left && time_left > 300){
+                    if(timeForEachDepth[2] + 7 < time_left && time_left > 300){
+                        utilityFunctionFlag = true;
                         return 4;
-                    } else if(timeForEachDepth[1] + 5 < time_left && time_left > 280){
+                    } else if(timeForEachDepth[1] + 3 < time_left && time_left > 290){
+                        utilityFunctionFlag = true;
                         return 3;
-                    } else if(timeForEachDepth[2] + 10 < time_left && time_left > 120){
+                    } else if(timeForEachDepth[2] + 7 < time_left && time_left > 100){
+                        utilityFunctionFlag = true;
                         return 4;
-                    } else if(timeForEachDepth[1] + 5 < time_left && time_left > 12){
+                    } else if(timeForEachDepth[1] + 3 < time_left && time_left > 10){
+                        utilityFunctionFlag = true;
                         return 3;
                     } else{
+                        utilityFunctionFlag = false;
                         return 2;
                     }
                 }
             } else{
-                if(time_left > 275){
-                    return 3;
-                } else if(time_left > 150){
+                if(time_left > 300){
+                    utilityFunctionFlag = true;
                     return 4;
-                } else if(time_left > 30){
+                } else if(time_left > 290){
+                    utilityFunctionFlag = true;
+                    return 3;
+                } else if(time_left > 100){
+                    utilityFunctionFlag = true;
+                    return 4;
+                } else if(time_left > 15){
+                    utilityFunctionFlag = true;
                     return 3;
                 } else{
+                    utilityFunctionFlag = false;
                     return 2;
                 }
             }
@@ -292,8 +303,46 @@ public class homework {
         }
         return newBoard;
     }
+    //Get the Total Jumps the opposite player can make if position of one point is changed
+    private int jumpsOppositePlayerCanMake(ArrayList<String> board, char myColor, char op_color, int i, int j){
+        int cnt = 0;
+        for(int x = i - 1; x <= i + 1; x++){
+            for(int y = j - 1; y <= j + 1; y++){
+                 if(x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE
+                         && board.get(x).charAt(y) == op_color){
+                     if((x == i - 1 && y == j - 1 && i + 1 < BOARD_SIZE && j + 1 < BOARD_SIZE
+                             && board.get(i + 1).charAt(j + 1) == '.') ||
+                         (x == i - 1 && y == j && i + 1 < BOARD_SIZE
+                             && board.get(i + 1).charAt(j) == '.') ||
+                         (x == i - 1 && y == j + 1 && i + 1  < BOARD_SIZE && j - 1 >= 0 
+                             && board.get(i + 1).charAt(j - 1) == '.') ||
+                         (x == i && y == j - 1 && j + 1 < BOARD_SIZE
+                             && board.get(i).charAt(j + 1) == '.') ||
+                         (x == i && y == j + 1 && j - 1 >= 0
+                             && board.get(i).charAt(j - 1) == '.') ||
+                         (x == i + 1 && y == j - 1 && i - 1 >= 0 && j + 1 < BOARD_SIZE
+                             && board.get(i - 1).charAt(j + 1) == '.') ||
+                         (x == i + 1 && y == j && i - 1 >= 0
+                             && board.get(i - 1).charAt(j) == '.') ||
+                         (x == i + 1 && y == j + 1 && i - 1 >= 0 && j - 1 >= 0
+                             && board.get(i - 1).charAt(j - 1) == '.')){
+                         cnt++;
+                     }
+                 }
+            }
+        }
+        return cnt;
+    }
     // Get the Score of leaf Nodes
-    private int utilityFunction(ArrayList<String> board, char myColor){
+    private int utilityFunction(Node node, char myColor){
+        ArrayList<String> board = node.getMe();
+        int myNewLoc_x = 0, myNewLoc_y= 0, myOldLoc_x = 0, myOldLoc_y = 0, oldJumpsCount = 0, newJumpsCount = 0;
+        if(utilityFunctionFlag){
+            myNewLoc_x = node.getMoves().get(node.getMoves().size() - 1).getFrom().getX();
+            myNewLoc_y = node.getMoves().get(node.getMoves().size() - 1).getFrom().getY();
+            myOldLoc_x = node.getMoves().get(0).getTo().getX();
+            myOldLoc_y = node.getMoves().get(0).getTo().getY();
+        }
         int result = 0;
         Pair destinationPair;
         char op_color;
@@ -304,26 +353,31 @@ public class homework {
             destinationPair = new Pair(15, 15);
             op_color = 'W';
         }
+        if(utilityFunctionFlag){
+            oldJumpsCount = jumpsOppositePlayerCanMake(board, myColor,op_color, myOldLoc_x, myOldLoc_y);
+            newJumpsCount = jumpsOppositePlayerCanMake(board, myColor, op_color, myNewLoc_x, myNewLoc_y);
+        }
         for(int i = 0; i< BOARD_SIZE; i++){
-            for(int j = 0; j< BOARD_SIZE ; j++){
-                if (board.get(i).charAt(j) == myColor){
-                    result += Math.sqrt(Math.pow((destinationPair.getX() - i), 2) + 
-                            Math.pow((destinationPair.getY() - j), 2));
-                } 
-//                else{
-//                    result -= getJumpMovesFromCurrentPlayer(board, op_color, i, j, new ArrayList()).size() * 2;
-//                }
+                for(int j = 0; j< BOARD_SIZE ; j++){
+                    if (board.get(i).charAt(j) == myColor){
+                        result += Math.sqrt(Math.pow((destinationPair.getX() - i), 2) + 
+                                    Math.pow((destinationPair.getY() - j), 2));
+                    }
+                }
             }
+        if(utilityFunctionFlag){
+            result += (newJumpsCount - oldJumpsCount)*2 ;
         }
         return result;
     }
     // Check if the current board is game winning board
     private Boolean isGameWon(ArrayList<String> board, char myColor){
         int opp_start, opp_end, opp_sum;
+        char opp_color;
         if(myColor == 'W'){
-            opp_start = 0; opp_end = 5; opp_sum = 6;
+            opp_start = 0; opp_end = 5; opp_sum = 6; opp_color = 'B';
         } else {
-            opp_start = 11; opp_end = BOARD_SIZE; opp_sum = 24;
+            opp_start = 11; opp_end = BOARD_SIZE; opp_sum = 24; opp_color = 'W';
         }
         int myColor_points = 0, opColor_points = 0;
         for(int i = opp_start; i < opp_end; i++){
@@ -331,7 +385,7 @@ public class homework {
                 if ((opp_sum == 6 && i + j < opp_sum) || (opp_sum == 24 && i + j > opp_sum)){
                     if(board.get(i).charAt(j) == myColor){
                         myColor_points++;
-                    } else if(board.get(i).charAt(j) == 'B'){
+                    } else if(board.get(i).charAt(j) == opp_color){
                         opColor_points++;
                     }
                 }
@@ -398,7 +452,8 @@ public class homework {
         }
         HashSet<ArrayList<Integer>> orig_set = getAllCampPointLocations(parentBoard, myColor, start, end, sum);
         int count_mycamp = orig_set.size();
-        int count_oppcamp = getAllCampPointLocations(parentBoard, myColor, opp_start, opp_end, opp_sum).size();
+        HashSet<ArrayList<Integer>> opp_campMyPoints = getAllCampPointLocations(parentBoard, myColor, opp_start, opp_end, opp_sum);
+        int count_oppcamp = opp_campMyPoints.size();
         // If there exists a point in my base camp that can be moved out of base then get those moves
         for(int i = start; i < end; i++){
             for(int j = start; j < end; j++){
@@ -459,12 +514,27 @@ public class homework {
                         for(Node node : temp){
                             int t_count_mycamp = getAllCampPointLocations(node.getMe(), myColor, start, end, sum).size();
                             int t_count_oppcamp = getAllCampPointLocations(node.getMe(), myColor, opp_start, opp_end, opp_sum).size();
+                            int temp_flag = 0;
                             if(t_count_mycamp == count_mycamp && t_count_oppcamp >= count_oppcamp){
                                 if(moveType == 1){
                                     putData(node);
                                     System.exit(0);
                                 }
-                                children.add(node);
+//                                if(count_oppcamp > 15){
+//                                    System.out.println("Hello");
+//                                    for(ArrayList<Integer> x : opp_campMyPoints){
+//                                        if((node.getMoves().get(0).getFrom().getX() == x.get(0)) &&
+//                                                (node.getMoves().get(0).getFrom().getY() == x.get(1))){
+//                                            temp_flag = 1;
+//                                            break;
+//                                        }
+//                                    }
+//                                    if(temp_flag == 0){
+//                                        children.add(node);
+//                                    }
+//                                } else{
+                                    children.add(node);
+//                                }
                             }
                         }
                     } 
@@ -483,7 +553,7 @@ public class homework {
                         ArrayList<Move> moves = new ArrayList<>();
                         moves.add(new Move(new Pair(location_x, location_y), new Pair(i, j)));
                         children.add(new Node(null, makeNewBoard(board, location_x, 
-                                location_y, i, j), new ArrayList<>(), 0, 0, moves, 'J'));
+                                location_y, i, j), new ArrayList<>(), 0, 0, moves, 'E'));
                     }
                 }
             }
@@ -702,7 +772,6 @@ public class homework {
     }
     // Get the next best move from the current board
     public Node getNextBestMove(InputData dataObj, int max_depth) throws IOException{
-        //double cnt = 1;
         Node root = new Node(null, dataObj.getBoard(), new ArrayList<>(), 0, 1, null, 'X');
         char myColor = dataObj.getColor();
         ArrayList<Node> leafNode = new ArrayList();
@@ -725,9 +794,7 @@ public class homework {
                     System.exit(0);
                 }
             }
-            //cnt += children.size();
        }
-        //System.out.println(cnt);
         if(root.getChildren().size() > 0){
             // For each leaf node call the utility function
             queue = new LinkedList<>();
@@ -744,7 +811,7 @@ public class homework {
                 }
             }
             for(int i = 0; i < leafNode.size(); i++){
-                leafNode.get(i).setScore(utilityFunction(leafNode.get(i).getMe(), myColor));
+                leafNode.get(i).setScore(utilityFunction(leafNode.get(i), myColor));
             }
             // Run min max to get the next best move
             choose_score = minMax(root, false, MIN, MAX);
@@ -781,9 +848,7 @@ public class homework {
     public static void main(String args[]) throws IOException {
         homework hw = new homework();
         InputData dataObj = hw.getData();
-        hw.startTime = System.currentTimeMillis();
         int max_depth = hw.getMaxDepth(dataObj.getTimeLeft(), dataObj.getMoveType());
-//        System.out.println(max_depth);
         Node result = hw.getNextBestMove(dataObj, max_depth);
         hw.putData(result);
     }
